@@ -118,9 +118,33 @@ function Hero() {
     video.setAttribute('muted', '')
     video.setAttribute('playsinline', '')
     video.setAttribute('webkit-playsinline', '')
-    video.play().catch(() => {
-      // Autoplay blocked (e.g. Low Power Mode): the poster stays visible.
-    })
+    const tryPlay = () => {
+      if (video.paused) video.play().catch(() => {})
+    }
+    tryPlay()
+    video.addEventListener('canplay', tryPlay)
+
+    // Low Power Mode (iOS) and Data Saver (Android) block autoplay but still
+    // allow playback after a user gesture, so start on the first tap. Only these
+    // events grant user activation (touchstart and scroll do not).
+    const gestures = ['touchend', 'pointerup', 'click', 'keydown']
+    const onGesture = () => {
+      video.play().then(() => gestures.forEach(g => window.removeEventListener(g, onGesture))).catch(() => {})
+    }
+    gestures.forEach(g => window.addEventListener(g, onGesture, { passive: true }))
+
+    // Browsers pause offscreen/backgrounded video; resume when it's visible again.
+    const onVisible = () => document.visibilityState === 'visible' && tryPlay()
+    document.addEventListener('visibilitychange', onVisible)
+    const observer = new IntersectionObserver(([entry]) => entry.isIntersecting && tryPlay())
+    observer.observe(video)
+
+    return () => {
+      video.removeEventListener('canplay', tryPlay)
+      gestures.forEach(g => window.removeEventListener(g, onGesture))
+      document.removeEventListener('visibilitychange', onVisible)
+      observer.disconnect()
+    }
   }, [])
 
   return (
