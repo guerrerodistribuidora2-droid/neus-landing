@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { motion } from 'motion/react'
 import { ArrowRight, Bot, MessagesSquare, Workflow, Plug } from 'lucide-react'
 import PillNav from './PillNav.jsx'
@@ -58,6 +58,15 @@ function GridIcon() {
 }
 
 function Navbar({ activeHref, onOpenQuiz }) {
+  const [scrolled, setScrolled] = useState(false)
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > window.innerHeight * 0.6)
+    onScroll()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+
   const items = [
     { label: 'Inicio', href: '#inicio' },
     { label: 'Servicios', href: '#servicios' },
@@ -67,7 +76,7 @@ function Navbar({ activeHref, onOpenQuiz }) {
 
   return (
     <motion.header
-      className="navbar"
+      className={`navbar${scrolled ? ' is-scrolled' : ''}`}
       initial={{ y: -16, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ duration: 0.8, ease: EASE }}
@@ -97,6 +106,23 @@ function Navbar({ activeHref, onOpenQuiz }) {
 }
 
 function Hero() {
+  const videoRef = useRef(null)
+
+  // React doesn't render `muted` as an HTML attribute, and iOS Safari only
+  // autoplays inline videos that carry it, so set it by hand and kick off playback.
+  useEffect(() => {
+    const video = videoRef.current
+    if (!video) return
+    video.muted = true
+    video.defaultMuted = true
+    video.setAttribute('muted', '')
+    video.setAttribute('playsinline', '')
+    video.setAttribute('webkit-playsinline', '')
+    video.play().catch(() => {
+      // Autoplay blocked (e.g. Low Power Mode): the poster stays visible.
+    })
+  }, [])
+
   return (
     <section className="hero" id="inicio">
       <div className="video-layer">
@@ -106,7 +132,16 @@ function Hero() {
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 1.8, ease: EASE }}
         >
-          <video src={VIDEO_URL} autoPlay muted playsInline loop preload="auto" />
+          <video
+            ref={videoRef}
+            src={VIDEO_URL}
+            poster={`${import.meta.env.BASE_URL}hero-poster.jpg`}
+            autoPlay
+            muted
+            playsInline
+            loop
+            preload="auto"
+          />
         </motion.div>
       </div>
 
